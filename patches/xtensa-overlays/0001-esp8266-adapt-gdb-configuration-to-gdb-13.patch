@@ -1,0 +1,38 @@
+Adapt the ESP8266 GDB configuration to GDB 13 and newer
+
+Since GDB 13, the register map has to be provided as the global xtensa_rmap
+array, and the XTENSA_CONFIG_INSTANTIATE macro is not used anymore. The
+default spill size of zero matches the value previously passed to the macro.
+
+diff --git a/xtensa_esp8266/gdb/gdb/xtensa-config.c b/xtensa_esp8266/gdb/gdb/xtensa-config.c
+index 7657d61..e4db955 100644
+--- a/xtensa_esp8266/gdb/gdb/xtensa-config.c
++++ b/xtensa_esp8266/gdb/gdb/xtensa-config.c
+@@ -23,7 +23,6 @@
+ 
+ #define XTENSA_CONFIG_VERSION 0x60
+ 
+-#include "defs.h"
+ #include "xtensa-config.h"
+ #include "xtensa-tdep.h"
+ 
+@@ -45,7 +44,7 @@ const xtensa_mask_t xtensa_mask5 = { 1, xtensa_submask5 };
+ 
+ 
+ /* Register map.  */
+-xtensa_register_t rmap[] = 
++xtensa_register_t xtensa_rmap[] =
+ {
+   /*    idx ofs bi sz al targno  flags cp typ group name  */
+   XTREG(  0,  0,32, 4, 4,0x0000,0x0006 & ~1,-2, 8,0x0100,a0,          0,0,0,0,0,0)
+@@ -110,10 +109,3 @@ xtensa_register_t rmap[] =
+             0,0,&xtensa_mask4,0,0,0)
+   XTREG_END
+ };
+-
+-
+-
+-#ifdef XTENSA_CONFIG_INSTANTIATE
+-XTENSA_CONFIG_INSTANTIATE(rmap,0)
+-#endif
+-

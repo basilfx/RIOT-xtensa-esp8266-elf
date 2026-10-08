@@ -1,4 +1,6 @@
-# Builds the ESP8266 toolchain (xtensa-esp8266-elf) using crosstool-NG.
+# Builds one of the toolchains in toolchains/ using crosstool-NG. The toolchain
+# is selected with the TOOLCHAIN build argument, which is the name of its
+# directory and equals the target triplet of the toolchain.
 #
 # The toolchain is linked dynamically against the C library of the build
 # image. A statically linked toolchain is not used, since GDB then loads the
@@ -8,17 +10,25 @@
 # is used as base image.
 ARG BASE_IMAGE=docker.io/library/ubuntu:noble
 
-# Installation directory of the toolchain. The packaged archive extracts to a
+# Name of the toolchain to build, for example xtensa-esp8266-elf.
+ARG TOOLCHAIN
+
+# Installation directory of the toolchain. If empty, the default of the
+# defconfig of the toolchain is used. The packaged archive extracts to a
 # directory with the same name as the last component of this path.
-ARG TOOLCHAIN_PREFIX=/opt/esp/xtensa-esp8266-elf
+ARG TOOLCHAIN_PREFIX
 
 FROM ${BASE_IMAGE} AS build
 
+ARG TOOLCHAIN
 ARG TOOLCHAIN_PREFIX
 
 ARG CROSSTOOL_NG_VERSION=1.29.0
 ARG CROSSTOOL_NG_SHA256=1e0c5efcf2af674993b74a1783fe78727c8d34b500ebab07eb1bb0a45c8fcc87
-ARG XTENSA_OVERLAYS_COMMIT=dd1cf19f6eb327a9db51043439974a6de13f5c7f
+
+RUN \
+    test -n "${TOOLCHAIN}" || \
+    { echo 'The TOOLCHAIN build argument is required' >&2; exit 1; }
 
 RUN \
     apt-get update && \
@@ -39,60 +49,63 @@ RUN \
     make install && \
     rm -rf /tmp/crosstool-ng*
 
-COPY patches/xtensa-overlays/ /tmp/patches/
+# crosstool-NG refuses to run as root. The files of the toolchain are copied to
+# /home/build/toolchain, which the defconfig files refer to.
+RUN useradd -m build
 
+COPY --chown=build:build toolchains/${TOOLCHAIN}/ /home/build/toolchain/
+
+# The installation directory is resolved from the defconfig, which is a shell
+# script, and stored for the later stages.
 RUN \
-    echo 'Fetching Xtensa overlays' >&2 && \
-    git clone https://github.com/espressif/xtensa-overlays /opt/xtensa-overlays && \
-    git -C /opt/xtensa-overlays checkout -q ${XTENSA_OVERLAYS_COMMIT} && \
-    git -C /opt/xtensa-overlays apply /tmp/patches/*.patch && \
-    rm -rf /tmp/patches
-
-# crosstool-NG refuses to run as root
-RUN \
-    useradd -m build && \
-    mkdir -p "${TOOLCHAIN_PREFIX}" && \
-    chown build:build "${TOOLCHAIN_PREFIX}"
-
-COPY esp8266.defconfig /home/build/defconfig
+    PREFIX="$(. /home/build/toolchain/defconfig && echo "${CT_PREFIX_DIR}")" && \
+    echo "${PREFIX}" > /etc/toolchain-prefix && \
+    mkdir -p "${PREFIX}" && \
+    chown build:build "${PREFIX}"
 
 USER build
 WORKDIR /home/build
 
+# Toolchains may provide a script that prepares additional sources.
 RUN \
-    echo 'Building ESP8266 toolchain' >&2 && \
-    DEFCONFIG=defconfig ct-ng defconfig && \
+    if [ -x toolchain/prepare.sh ]; then \
+        echo "Preparing ${TOOLCHAIN} toolchain" >&2 && \
+        toolchain/prepare.sh; \
+    fi
+
+RUN \
+    echo "Building ${TOOLCHAIN} toolchain" >&2 && \
+    DEFCONFIG=toolchain/defconfig ct-ng defconfig && \
     ct-ng build.$(nproc) && \
     rm -rf .build src && \
-    cd "${TOOLCHAIN_PREFIX}" && \
+    cd "$(cat /etc/toolchain-prefix)" && \
     echo 'Removing documentation and unneeded files' >&2 && \
     rm -rf build.log.bz2 share/doc share/info share/man \
-        bin/xtensa-esp8266-elf-lto-dump && \
+        "bin/${TOOLCHAIN}-lto-dump" && \
     echo 'Deduplicating binaries' >&2 && \
-    cd xtensa-esp8266-elf/bin && \
+    cd "${TOOLCHAIN}/bin" && \
     for f in *; do \
-        test -f "../../bin/xtensa-esp8266-elf-$f" && \
-        ln -f "../../bin/xtensa-esp8266-elf-$f" "$f"; \
+        test -f "../../bin/${TOOLCHAIN}-$f" && \
+        ln -f "../../bin/${TOOLCHAIN}-$f" "$f"; \
     done; \
     true
-
-ENV PATH=${TOOLCHAIN_PREFIX}/bin:$PATH
 
 # Packages the toolchain into an archive that extracts to the last component of
 # the installation directory, with a checksum file next to it.
 FROM build AS package
 
-ARG TOOLCHAIN_PREFIX
+ARG TOOLCHAIN
 
 USER root
 
 RUN \
-    echo 'Packaging ESP8266 toolchain' >&2 && \
-    ARCHIVE="xtensa-esp8266-elf-$(uname -m)-linux-gnu.tar.xz" && \
+    echo "Packaging ${TOOLCHAIN} toolchain" >&2 && \
+    PREFIX="$(cat /etc/toolchain-prefix)" && \
+    ARCHIVE="${TOOLCHAIN}-$(uname -m)-linux-gnu.tar.xz" && \
     mkdir /dist && \
-    tar -C "$(dirname "${TOOLCHAIN_PREFIX}")" \
+    tar -C "$(dirname "${PREFIX}")" \
         --sort=name --owner=0 --group=0 --numeric-owner \
-        -cf - "$(basename "${TOOLCHAIN_PREFIX}")" | \
+        -cf - "$(basename "${PREFIX}")" | \
         xz -T0 -9 > "/dist/${ARCHIVE}" && \
     cd /dist && \
     sha256sum "${ARCHIVE}" > "${ARCHIVE}.sha256"
@@ -102,7 +115,7 @@ RUN \
 # distributed, including the libraries it requires from the host.
 FROM ${BASE_IMAGE} AS test
 
-ARG TOOLCHAIN_PREFIX
+ARG TOOLCHAIN
 
 RUN \
     apt-get update && \
@@ -110,15 +123,17 @@ RUN \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=package /dist/ /dist/
-COPY test/ /tmp/test/
+COPY --from=package /etc/toolchain-prefix /etc/toolchain-prefix
+COPY test/ /tmp/smoke-test/test/
 
 RUN \
-    echo 'Testing ESP8266 toolchain' >&2 && \
+    echo "Testing ${TOOLCHAIN} toolchain" >&2 && \
+    PREFIX="$(cat /etc/toolchain-prefix)" && \
     cd /dist && \
     sha256sum -c *.sha256 && \
-    mkdir -p "$(dirname "${TOOLCHAIN_PREFIX}")" && \
-    tar -C "$(dirname "${TOOLCHAIN_PREFIX}")" -xJf *.tar.xz && \
-    /tmp/test/smoke-test.sh "${TOOLCHAIN_PREFIX}"
+    mkdir -p "$(dirname "${PREFIX}")" && \
+    tar -C "$(dirname "${PREFIX}")" -xJf *.tar.xz && \
+    /tmp/smoke-test/test/smoke-test.sh "${TOOLCHAIN}" "${PREFIX}"
 
 # Contains only the archive, so it can be exported using the --output option.
 # The archive is taken from the test stage, so it is only exported if the

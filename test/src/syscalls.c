@@ -1,22 +1,16 @@
 /*
- * Entry point and system call stubs, so that the test program links without
- * a board support package. The program is not meant to be executed.
+ * System call stubs, so that the test program links without a board support
+ * package. Like RIOT, the reentrant variants of the system calls are
+ * provided. The program is not meant to be executed.
  */
 
 #include <errno.h>
+#include <reent.h>
 #include <stddef.h>
 #include <sys/stat.h>
 
-extern int main(void);
-extern void _exit(int status);
-
-static char heap[4096];
+static char heap[1024];
 static size_t heap_used;
-
-void _start(void)
-{
-    _exit(main());
-}
 
 void _exit(int status)
 {
@@ -25,10 +19,10 @@ void _exit(int status)
     while (1) {}
 }
 
-void *_sbrk(ptrdiff_t increment)
+void *_sbrk_r(struct _reent *r, ptrdiff_t increment)
 {
     if (heap_used + increment > sizeof(heap)) {
-        errno = ENOMEM;
+        r->_errno = ENOMEM;
         return (void *)-1;
     }
 
@@ -38,16 +32,18 @@ void *_sbrk(ptrdiff_t increment)
     return previous;
 }
 
-int _write(int fd, const void *buffer, size_t count)
+_ssize_t _write_r(struct _reent *r, int fd, const void *buffer, size_t count)
 {
+    (void)r;
     (void)fd;
     (void)buffer;
 
     return count;
 }
 
-int _read(int fd, void *buffer, size_t count)
+_ssize_t _read_r(struct _reent *r, int fd, void *buffer, size_t count)
 {
+    (void)r;
     (void)fd;
     (void)buffer;
     (void)count;
@@ -55,15 +51,17 @@ int _read(int fd, void *buffer, size_t count)
     return 0;
 }
 
-int _close(int fd)
+int _close_r(struct _reent *r, int fd)
 {
     (void)fd;
+    r->_errno = EBADF;
 
     return -1;
 }
 
-int _lseek(int fd, int offset, int whence)
+_off_t _lseek_r(struct _reent *r, int fd, _off_t offset, int whence)
 {
+    (void)r;
     (void)fd;
     (void)offset;
     (void)whence;
@@ -71,31 +69,35 @@ int _lseek(int fd, int offset, int whence)
     return 0;
 }
 
-int _fstat(int fd, struct stat *st)
+int _fstat_r(struct _reent *r, int fd, struct stat *st)
 {
+    (void)r;
     (void)fd;
     st->st_mode = S_IFCHR;
 
     return 0;
 }
 
-int _isatty(int fd)
+int _isatty_r(struct _reent *r, int fd)
 {
+    (void)r;
     (void)fd;
 
     return 1;
 }
 
-int _getpid(void)
+int _getpid_r(struct _reent *r)
 {
+    (void)r;
+
     return 1;
 }
 
-int _kill(int pid, int signal)
+int _kill_r(struct _reent *r, int pid, int signal)
 {
     (void)pid;
     (void)signal;
-    errno = EINVAL;
+    r->_errno = EINVAL;
 
     return -1;
 }

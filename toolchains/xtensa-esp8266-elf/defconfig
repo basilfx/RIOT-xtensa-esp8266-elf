@@ -11,8 +11,8 @@
 # core configuration headers for libm, and the overlay targets the older
 # directory layout used up to newlib 4.4.
 #
-# The GDB part of the overlay is patched to match the interface of GDB 13 and
-# newer, see patches/xtensa-overlays/.
+# The overlay is fetched by prepare.sh, which also patches its GDB part to
+# match the interface of GDB 13 and newer, see overlay-patches/.
 #
 # The installation directory is taken from the TOOLCHAIN_PREFIX environment
 # variable, and defaults to /opt/esp/xtensa-esp8266-elf. The directory is not
@@ -26,7 +26,7 @@ CT_LOG_PROGRESS_BAR=n
 CT_ARCH_XTENSA=y
 CT_XTENSA_CUSTOM=y
 CT_OVERLAY_NAME="esp8266"
-CT_OVERLAY_LOCATION="/opt/xtensa-overlays"
+CT_OVERLAY_LOCATION="/home/build/toolchain/xtensa-overlays"
 CT_TARGET_CFLAGS="-mlongcalls"
 CT_TARGET_VENDOR="esp8266"
 CT_STRIP_HOST_TOOLCHAIN_EXECUTABLES=y

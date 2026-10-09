@@ -1,0 +1,23 @@
+Disable the MSP430 watchdog timer in the startup code
+
+The watchdog timer is enabled after reset, and expires after 32768 clock
+cycles. Initializing the data and bss sections takes longer than that on
+devices with a lot of RAM, which resets the device before main() or any
+constructor is called. Therefore, the watchdog timer is disabled before.
+
+The address of the WDTCTL register is provided by the linker script of the
+device.
+
+--- a/libgloss/msp430/crt0.S
++++ b/libgloss/msp430/crt0.S
+@@ -53,7 +53,10 @@
+ START_CRT_FUNC 0000 start
+ 	.refsym	__msp430_resetvec_hook
+ 	.refsym	__crt0_call_main
++	.refsym	WDTCTL
+ 	mov_	#__stack, R1
++	;; Disable watchdog timer.
++	MOV	#0x5a80, &WDTCTL
+ 
+ END_CRT_FUNC	start
+ #endif

@@ -1,0 +1,54 @@
+# crosstool-NG configuration of the MSP430 toolchain (msp430-elf).
+#
+# The newlib options match the toolchain from
+# https://github.com/RIOT-OS/toolchains, which RIOT used before. Newlib is
+# built with the nano variants of formatted I/O and malloc, since RIOT links
+# MSP430 applications against newlib-nano. Unlike that toolchain, formatted
+# I/O of floating point values is enabled, which newlib-nano only links if
+# requested using -u _printf_float (RIOT module printf_float). Only C is
+# supported, since RIOT does not support C++ on MSP430.
+#
+# The target libraries are built with DWARF 2 debug information, like RIOT
+# builds its own code for MSP430. With the default DWARF 5, binutils fails to
+# link parts of the C library for the msp430 CPU, for example:
+#
+#   final size of uleb128 value at offset 0x1015 in .debug_loclists from
+#   libc.a(libc_a-dtoa.o) exceeds available space
+#
+# Newlib is patched so that the system calls of the C library call the
+# reentrant system calls that RIOT provides, and so that the startup code
+# disables the watchdog timer before initializing memory, see patches/.
+#
+# The installation directory is taken from the TOOLCHAIN_PREFIX environment
+# variable, and defaults to /opt/msp430-elf. The directory is not removed
+# before building, so that it can be created upfront by a user with write
+# permissions to its parent directory.
+CT_CONFIG_VERSION="4"
+CT_EXPERIMENTAL=y
+CT_PREFIX_DIR="${TOOLCHAIN_PREFIX:-/opt/msp430-elf}"
+# CT_PREFIX_DIR_RO is not set
+# CT_RM_RF_PREFIX_DIR is not set
+CT_LOG_PROGRESS_BAR=n
+CT_PATCH_BUNDLED_LOCAL=y
+CT_LOCAL_PATCH_DIR="/home/build/toolchain/patches"
+CT_ARCH_MSP430=y
+CT_OMIT_TARGET_VENDOR=y
+CT_TARGET_CFLAGS="-gdwarf-2"
+CT_STRIP_HOST_TOOLCHAIN_EXECUTABLES=y
+CT_BINUTILS_V_2_43=y
+CT_NEWLIB_V_4_4=y
+CT_LIBC_NEWLIB_IO_FLOAT=y
+# CT_LIBC_NEWLIB_UNBUF_STREAM_OPT is not set
+# CT_LIBC_NEWLIB_FSEEK_OPTIMIZATION is not set
+CT_LIBC_NEWLIB_DISABLE_SUPPLIED_SYSCALLS=y
+CT_LIBC_NEWLIB_GLOBAL_ATEXIT=y
+CT_LIBC_NEWLIB_LITE_EXIT=y
+CT_LIBC_NEWLIB_REENT_SMALL=y
+# CT_LIBC_NEWLIB_WIDE_ORIENT is not set
+CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE=y
+CT_LIBC_NEWLIB_NANO_MALLOC=y
+CT_LIBC_NEWLIB_NANO_FORMATTED_IO=y
+CT_GCC_V_14=y
+CT_DEBUG_GDB=y
+CT_GDB_V_15=y
+# CT_GDB_CROSS_PYTHON is not set

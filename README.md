@@ -10,6 +10,7 @@ of their components:
 
 | Toolchain            | Architecture           | GCC    | binutils | newlib         | GDB  |
 |----------------------|------------------------|--------|----------|----------------|------|
+| `msp430-elf`         | MSP430                 | 14.4.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
 | `xtensa-esp8266-elf` | ESP8266 (Xtensa lx106) | 14.4.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
 
 Each toolchain has its own directory in [toolchains/](toolchains/), named
@@ -28,6 +29,24 @@ image (Ubuntu 24.04). A static toolchain would make GDB load the gconv and NSS
 modules of the host, which crashes when the C library versions differ. The
 toolchains therefore require glibc 2.38 or newer. GDB additionally requires
 `libstdc++.so.6`, `libncursesw.so.6` and `libtinfo.so.6`.
+
+### msp430-elf
+The MSP430 toolchain is based on the following configuration:
+
+* Newlib is built with the nano variants of formatted I/O and memory
+  allocation, since RIOT links MSP430 applications against newlib-nano.
+* The system calls of the C library call the reentrant system calls that RIOT
+  provides (`_read_r()`, `_write_r()` and so on), like on other architectures.
+  Off-the-shelf MSP430 toolchains expect the system calls without the
+  reentrant wrappers instead.
+* The startup code disables the watchdog timer before it initializes memory,
+  since that takes longer than the watchdog timeout on devices with a lot of
+  RAM.
+* Formatted I/O of floating point values is available. Newlib-nano only links
+  it if requested with `-u _printf_float` (RIOT module `printf_float`).
+* Only C is supported, since RIOT does not support C++ on MSP430.
+
+The toolchain does not contain the device headers and linker scripts.
 
 ### xtensa-esp8266-elf
 The processor configuration is taken from Espressif's
@@ -60,7 +79,7 @@ docker build --platform linux/amd64,linux/arm64 --build-arg TOOLCHAIN=xtensa-esp
 ```
 
 Each toolchain is built to be installed in the directory of its `defconfig`
-(`/opt/esp/xtensa-esp8266-elf`). Use
+(`/opt/msp430-elf` and `/opt/esp/xtensa-esp8266-elf`). Use
 `--build-arg TOOLCHAIN_PREFIX=...` to change the installation directory. The
 archive then extracts to a directory named after the last component of that
 path.
@@ -87,12 +106,6 @@ runs the smoke test there. The build fails if any of the tests fail:
 
 ```sh
 docker build --platform linux/amd64,linux/arm64 --build-arg TOOLCHAIN=xtensa-esp8266-elf --target test .
-```
-
-The smoke test can also be run on an installed toolchain directly:
-
-```sh
-test/smoke-test.sh xtensa-esp8266-elf /opt/esp/xtensa-esp8266-elf
 ```
 
 ## License

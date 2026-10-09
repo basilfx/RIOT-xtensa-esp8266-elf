@@ -1,0 +1,22 @@
+Let the MSP430 C library call the reentrant system calls
+
+By default, newlib expects the system calls of MSP430 to be provided without
+a leading underscore, and does not build the POSIX system call wrappers
+(read(), write() and so on). RIOT provides the reentrant system calls
+(_read_r(), _write_r() and so on) instead, like it does for other
+architectures. Therefore, the wrappers are built to call the reentrant
+system calls directly, which newlib does not provide itself.
+
+--- a/newlib/configure.host
++++ b/newlib/configure.host
+@@ -791,6 +791,10 @@
+ 	default_newlib_io_long_long="yes"
+ 	newlib_cflags="${newlib_cflags} -Os -DPREFER_SIZE_OVER_SPEED -DSMALL_MEMORY"
+         ;;
++  msp430*-*-*)
++	newlib_cflags="${newlib_cflags} -DREENTRANT_SYSCALLS_PROVIDED"
++	syscall_dir=syscalls
++	;;
+   nios2*)
+ 	syscall_dir=
+ 	newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DHAVE_SYSTEM -DMISSING_SYSCALL_NAMES"

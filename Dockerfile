@@ -6,9 +6,9 @@
 # image. A statically linked toolchain is not used, since GDB then loads the
 # gconv and NSS modules of the host at runtime, which crashes if the host C
 # library differs from the one GDB was linked against. Programs linked against
-# an older C library run on newer ones, so the oldest supported distribution
-# is used as base image.
-ARG BASE_IMAGE=docker.io/library/ubuntu:noble
+# a C library only run on the same or newer versions of it, so the toolchain
+# requires a distribution that is at least as new as the base image.
+ARG BASE_IMAGE=docker.io/library/ubuntu:resolute
 
 # Name of the toolchain to build, for example xtensa-esp8266-elf.
 ARG TOOLCHAIN

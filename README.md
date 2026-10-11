@@ -25,9 +25,9 @@ The toolchain-specific parts of the smoke test are in
 [test/toolchains/](test/toolchains/).
 
 The toolchains are linked dynamically against the C library of the build
-image (Ubuntu 24.04). A static toolchain would make GDB load the gconv and NSS
+image (Ubuntu 26.04). A static toolchain would make GDB load the gconv and NSS
 modules of the host, which crashes when the C library versions differ. The
-toolchains therefore require glibc 2.38 or newer. GDB additionally requires
+toolchains therefore require glibc 2.43 or newer. GDB additionally requires
 `libstdc++.so.6`, `libncursesw.so.6` and `libtinfo.so.6`.
 
 ### msp430-elf

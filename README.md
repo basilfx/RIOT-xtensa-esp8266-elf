@@ -10,8 +10,8 @@ of their components:
 
 | Toolchain            | Architecture           | GCC    | binutils | newlib         | GDB  |
 |----------------------|------------------------|--------|----------|----------------|------|
-| `msp430-elf`         | MSP430                 | 14.4.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
-| `xtensa-esp8266-elf` | ESP8266 (Xtensa lx106) | 14.4.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
+| `msp430-elf`         | MSP430                 | 15.3.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
+| `xtensa-esp8266-elf` | ESP8266 (Xtensa lx106) | 15.3.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
 
 Each toolchain has its own directory in [toolchains/](toolchains/), named
 after its target triplet:

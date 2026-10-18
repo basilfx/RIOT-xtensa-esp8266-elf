@@ -2,6 +2,9 @@
  * System call stubs, so that the test program links without a board support
  * package. Like RIOT, the reentrant variants of the system calls are
  * provided. The program is not meant to be executed.
+ *
+ * On MIPS, the startup code of libgloss provides _exit() and manages the heap,
+ * so RIOT does not provide these system calls there.
  */
 
 #include <errno.h>
@@ -9,6 +12,7 @@
 #include <stddef.h>
 #include <sys/stat.h>
 
+#ifndef __mips__
 static char heap[1024];
 static size_t heap_used;
 
@@ -31,6 +35,7 @@ void *_sbrk_r(struct _reent *r, ptrdiff_t increment)
 
     return previous;
 }
+#endif
 
 _ssize_t _write_r(struct _reent *r, int fd, const void *buffer, size_t count)
 {

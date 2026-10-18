@@ -8,10 +8,11 @@ The toolchains are built from source using
 [crosstool-NG](https://crosstool-ng.github.io/), with the following versions
 of their components:
 
-| Toolchain            | Architecture           | GCC    | binutils | newlib         | GDB  |
-|----------------------|------------------------|--------|----------|----------------|------|
-| `msp430-elf`         | MSP430                 | 15.3.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
-| `xtensa-esp8266-elf` | ESP8266 (Xtensa lx106) | 15.3.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
+| Toolchain            | Architecture            | GCC    | binutils | newlib         | GDB  |
+|----------------------|-------------------------|--------|----------|----------------|------|
+| `mips-mti-elf`       | MIPS (PIC32MX, PIC32MZ) | 15.3.0 | 2.43.1   | 4.6.0.20260123 | 15.2 |
+| `msp430-elf`         | MSP430                  | 15.3.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
+| `xtensa-esp8266-elf` | ESP8266 (Xtensa lx106)  | 15.3.0 | 2.43.1   | 4.4.0.20231231 | 15.2 |
 
 Each toolchain has its own directory in [toolchains/](toolchains/), named
 after its target triplet:
@@ -29,6 +30,33 @@ image (Ubuntu 24.04). A static toolchain would make GDB load the gconv and NSS
 modules of the host, which crashes when the C library versions differ. The
 toolchains therefore require glibc 2.38 or newer. GDB additionally requires
 `libstdc++.so.6`, `libncursesw.so.6` and `libtinfo.so.6`.
+
+### mips-mti-elf
+The MIPS toolchain targets the PIC32MX (M4K core) and PIC32MZ (microAptiv core)
+devices of Microchip. It replaces the MIPS toolchain of Imagination
+Technologies (2020.06-01), which RIOT used before, and keeps its target
+triplet:
+
+* Like that toolchain, the compiler defaults to mips32r2, big-endian and
+  hard-float. Applications select the little-endian, soft-float libraries
+  using `-EL -msoft-float`, like RIOT does.
+* Only the little-endian multilibs of mips32r2 are built, since the PIC32
+  devices are little-endian only: MIPS32 and microMIPS, each with hard-float
+  and soft-float. The original toolchain also contains the big-endian, MIPS16e
+  and MIPS64 multilibs. MIPS16e is left out, since newlib does not build for
+  it, and RIOT does not use it.
+* Libgloss is patched, since the UHI implementation of `fstat()` assumes a
+  32-bit `time_t`, see `patches/`.
+* The hardware abstraction layer (`libhal`, `<mips/*.h>`), the Unified Hosting
+  Interface (`libuhi`), the boot code and the linker scripts `uhi32.ld` and
+  `bootcode.ld` are provided by libgloss. These are part of upstream newlib
+  since version 4.6, which is why that version is used.
+* The C library is configured like for the ESP8266 toolchain below: formatted
+  I/O that supports floating point, C99 formats and `long long` values,
+  retargetable locking and small reentrancy structures.
+* C and C++ are supported.
+
+The toolchain does not contain the device headers and linker scripts.
 
 ### msp430-elf
 The MSP430 toolchain is based on the following configuration:
@@ -79,7 +107,7 @@ docker build --platform linux/amd64,linux/arm64 --build-arg TOOLCHAIN=xtensa-esp
 ```
 
 Each toolchain is built to be installed in the directory of its `defconfig`
-(`/opt/msp430-elf` and `/opt/esp/xtensa-esp8266-elf`). Use
+(`/opt/mips-mti-elf`, `/opt/msp430-elf` and `/opt/esp/xtensa-esp8266-elf`). Use
 `--build-arg TOOLCHAIN_PREFIX=...` to change the installation directory. The
 archive then extracts to a directory named after the last component of that
 path.

@@ -1,0 +1,156 @@
+Remove the struct stat layout checks of the MIPS UHI
+
+The fstat() implementations of the MIPS Unified Hosting Interface check the
+layout of struct stat at compile time, which assumes a 32-bit time_t. Newlib
+defines time_t as 64-bit by default, so the checks fail and libgloss does not
+build. The checks are not required, since struct stat is filled field by
+field from the structure that the host returns (struct uhi_stat). Therefore,
+the checks are removed.
+
+generated with AI
+
+diff --color -ru a/libgloss/mips/uhi/uhi_fstat.c b/libgloss/mips/uhi/uhi_fstat.c
+--- a/libgloss/mips/uhi/uhi_fstat.c
++++ b/libgloss/mips/uhi/uhi_fstat.c
+@@ -58,10 +58,6 @@
+ #include <mips/hal.h>
+ #include "uhi_stat.h"
+ 
+-/* This macro declares a dummy type with -ve size if CONDITION is false */
+-#define __paste(STR1, STR2) STR1##STR2
+-#define __check(LINE, CONDITION) typedef char __paste(assertion_failed_at_line_, LINE) [(int)(CONDITION)-1]
+-
+ int _MIPS_HAL_NOMIPS16
+ fstat (int file, struct stat *sbuf)
+ {
+@@ -72,51 +68,6 @@
+   register int32_t ret asm ("$2") = __MIPS_UHI_SYSCALL_NUM;
+   register int32_t new_errno asm ("$3") = 0;
+ 
+-  /*
+-   * We assume that NewLib has following 'struct stat'. Any change in
+-   * this structure (either offset or size) would generate a compile
+-   * time error.
+-  */
+-#if defined (_LP64)
+-  __check (__LINE__, sizeof (struct stat) == 104);
+-  __check (__LINE__, offsetof (struct stat, st_dev) == 0);
+-  __check (__LINE__, offsetof (struct stat, st_ino) == 2);
+-  __check (__LINE__, offsetof (struct stat, st_mode) == 4);
+-  __check (__LINE__, offsetof (struct stat, st_nlink) == 8);
+-  __check (__LINE__, offsetof (struct stat, st_uid) == 10);
+-  __check (__LINE__, offsetof (struct stat, st_gid) == 12);
+-  __check (__LINE__, offsetof (struct stat, st_rdev) == 14);
+-  __check (__LINE__, offsetof (struct stat, st_size) == 16);
+-  __check (__LINE__, offsetof (struct stat, st_atime) == 24);
+-  __check (__LINE__, offsetof (struct stat, st_spare1) == 32);
+-  __check (__LINE__, offsetof (struct stat, st_mtime) == 40);
+-  __check (__LINE__, offsetof (struct stat, st_spare2) == 48);
+-  __check (__LINE__, offsetof (struct stat, st_ctime) == 56);
+-  __check (__LINE__, offsetof (struct stat, st_spare3) == 64);
+-  __check (__LINE__, offsetof (struct stat, st_blksize) == 72);
+-  __check (__LINE__, offsetof (struct stat, st_blocks) == 80);
+-  __check (__LINE__, offsetof (struct stat, st_spare4) == 88);
+-#else
+-  __check (__LINE__, sizeof (struct stat) == 60);
+-  __check (__LINE__, offsetof (struct stat, st_dev) == 0);
+-  __check (__LINE__, offsetof (struct stat, st_ino) == 2);
+-  __check (__LINE__, offsetof (struct stat, st_mode) == 4);
+-  __check (__LINE__, offsetof (struct stat, st_nlink) == 8);
+-  __check (__LINE__, offsetof (struct stat, st_uid) == 10);
+-  __check (__LINE__, offsetof (struct stat, st_gid) == 12);
+-  __check (__LINE__, offsetof (struct stat, st_rdev) == 14);
+-  __check (__LINE__, offsetof (struct stat, st_size) == 16);
+-  __check (__LINE__, offsetof (struct stat, st_atime) == 20);
+-  __check (__LINE__, offsetof (struct stat, st_spare1) == 24);
+-  __check (__LINE__, offsetof (struct stat, st_mtime) == 28);
+-  __check (__LINE__, offsetof (struct stat, st_spare2) == 32);
+-  __check (__LINE__, offsetof (struct stat, st_ctime) == 36);
+-  __check (__LINE__, offsetof (struct stat, st_spare3) == 40);
+-  __check (__LINE__, offsetof (struct stat, st_blksize) == 44);
+-  __check (__LINE__, offsetof (struct stat, st_blocks) == 48);
+-  __check (__LINE__, offsetof (struct stat, st_spare4) == 52);
+-#endif
+-
+   __asm__ __volatile__ (" # %0,%1 = fstat(%2, %3) op=%4\n"
+ 			SYSCALL (__MIPS_UHI_SYSCALL_NUM)
+ 			: "+r" (ret), "=r" (new_errno), "+r" (arg1),
+@@ -155,5 +106,3 @@
+   return ret;
+ }
+ 
+-#undef __paste
+-#undef __check
+diff --color -ru a/libgloss/mips/uhi/yamon_fstat.c b/libgloss/mips/uhi/yamon_fstat.c
+--- a/libgloss/mips/uhi/yamon_fstat.c
++++ b/libgloss/mips/uhi/yamon_fstat.c
+@@ -59,10 +59,6 @@
+ #include <mips/hal.h>
+ #include "uhi_stat.h"
+ 
+-/* This macro declares a dummy type with -ve size if CONDITION is false */
+-#define __paste(STR1, STR2) STR1##STR2
+-#define __check(LINE, CONDITION) typedef char __paste(assertion_failed_at_line_, LINE) [(int)(CONDITION)-1]
+-
+ int _MIPS_HAL_NOMIPS16
+ fstat (int file, struct stat *sbuf)
+ {
+@@ -73,51 +69,6 @@
+   register int32_t ret asm ("$2") = __MIPS_UHI_SYSCALL_NUM;
+   register int32_t new_errno asm ("$3") = 0;
+ 
+-  /*
+-   * We assume that NewLib has following 'struct stat'. Any change in
+-   * this structure (either offset or size) would generate a compile
+-   * time error.
+-  */
+-#if defined (_LP64)
+-  __check (__LINE__, sizeof (struct stat) == 104);
+-  __check (__LINE__, offsetof (struct stat, st_dev) == 0);
+-  __check (__LINE__, offsetof (struct stat, st_ino) == 2);
+-  __check (__LINE__, offsetof (struct stat, st_mode) == 4);
+-  __check (__LINE__, offsetof (struct stat, st_nlink) == 8);
+-  __check (__LINE__, offsetof (struct stat, st_uid) == 10);
+-  __check (__LINE__, offsetof (struct stat, st_gid) == 12);
+-  __check (__LINE__, offsetof (struct stat, st_rdev) == 14);
+-  __check (__LINE__, offsetof (struct stat, st_size) == 16);
+-  __check (__LINE__, offsetof (struct stat, st_atime) == 24);
+-  __check (__LINE__, offsetof (struct stat, st_spare1) == 32);
+-  __check (__LINE__, offsetof (struct stat, st_mtime) == 40);
+-  __check (__LINE__, offsetof (struct stat, st_spare2) == 48);
+-  __check (__LINE__, offsetof (struct stat, st_ctime) == 56);
+-  __check (__LINE__, offsetof (struct stat, st_spare3) == 64);
+-  __check (__LINE__, offsetof (struct stat, st_blksize) == 72);
+-  __check (__LINE__, offsetof (struct stat, st_blocks) == 80);
+-  __check (__LINE__, offsetof (struct stat, st_spare4) == 88);
+-#else
+-  __check (__LINE__, sizeof (struct stat) == 60);
+-  __check (__LINE__, offsetof (struct stat, st_dev) == 0);
+-  __check (__LINE__, offsetof (struct stat, st_ino) == 2);
+-  __check (__LINE__, offsetof (struct stat, st_mode) == 4);
+-  __check (__LINE__, offsetof (struct stat, st_nlink) == 8);
+-  __check (__LINE__, offsetof (struct stat, st_uid) == 10);
+-  __check (__LINE__, offsetof (struct stat, st_gid) == 12);
+-  __check (__LINE__, offsetof (struct stat, st_rdev) == 14);
+-  __check (__LINE__, offsetof (struct stat, st_size) == 16);
+-  __check (__LINE__, offsetof (struct stat, st_atime) == 20);
+-  __check (__LINE__, offsetof (struct stat, st_spare1) == 24);
+-  __check (__LINE__, offsetof (struct stat, st_mtime) == 28);
+-  __check (__LINE__, offsetof (struct stat, st_spare2) == 32);
+-  __check (__LINE__, offsetof (struct stat, st_ctime) == 36);
+-  __check (__LINE__, offsetof (struct stat, st_spare3) == 40);
+-  __check (__LINE__, offsetof (struct stat, st_blksize) == 44);
+-  __check (__LINE__, offsetof (struct stat, st_blocks) == 48);
+-  __check (__LINE__, offsetof (struct stat, st_spare4) == 52);
+-#endif
+-
+   if (file == 0 || file == 1 || file == 2)
+   {
+     sbuf->st_mode = S_IRUSR | S_IWUSR | S_IWGRP;
+@@ -178,6 +129,4 @@
+   return ret;
+ }
+ 
+-#undef __paste
+-#undef __check
+ 
